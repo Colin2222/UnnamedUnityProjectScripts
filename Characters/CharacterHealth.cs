@@ -10,7 +10,7 @@ public class CharacterHealth : MonoBehaviour
 
     Rigidbody2D rigidbody2d;
 
-    public int maxHealth = 5;
+    public int maxHealth = 6;
     public float timeInvincible = 0.8f;
     public int health { get { return currentHealth; }}
     int currentHealth;
