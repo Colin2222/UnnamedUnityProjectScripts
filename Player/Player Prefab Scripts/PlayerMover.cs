@@ -37,6 +37,7 @@ public class PlayerMover : MonoBehaviour
     private bool isJumping;
     private bool isExtraJumping;
     public float coyoteTime;
+    public float maxLandingForce;
 
     //walljumping/sliding
     public float slideForce = 5.0f;
@@ -110,7 +111,356 @@ public class PlayerMover : MonoBehaviour
         if(isTalking){
             isFrozen = true;
             animator.SetBool("IsTalking",true);
-            if(isYN){
+            HandleYN();
+        }
+        else{
+            isFrozen = false;
+        }
+
+        if(!isFrozen)
+        {
+            if(!isWallJumping && !isDashing){
+                horizontal = Input.GetAxisRaw("Horizontal");
+            }
+            vertical = Input.GetAxis("Vertical");
+
+            // set speed for animation handling
+            if(Mathf.Abs(horizontal) == 0)
+            {
+                animator.SetBool("IsMoving",false);
+            }
+            else
+            {
+                animator.SetBool("IsMoving",true);
+            }
+
+            // jumping
+            HandleJumping();
+
+            // dashing
+            HandleDashing();
+
+
+            // walljumping
+            HandleWallJumping();
+
+            // striking
+            HandleStriking();
+
+        }
+        else
+        {
+            horizontal = 0;
+            vertical = 0;
+        }
+
+
+
+        // interacting
+        if(Input.GetButtonDown("Interact") && !isInteracting && !isSliding)
+        {
+            isInteracting = true;
+        }
+        if(Input.GetButtonUp("Interact"))
+        {
+            isInteracting = false;
+        }
+
+
+
+        // animation updating
+        animator.SetFloat("Speed", Mathf.Abs(horizontal));
+        animator.SetFloat("VertSpeed",rigidbody2d.velocity.y);
+
+
+        if(isDashing)
+        {
+            animator.SetBool("IsDashing",true);
+        }
+        else
+        {
+            animator.SetBool("IsDashing",false);
+        }
+
+        if(playerScript.physicsChecker.isWalled)
+        {
+            animator.SetBool("IsSliding",true);
+        }
+        else
+        {
+            animator.SetBool("IsSliding",false);
+        }
+
+        if(playerScript.physicsChecker.isGrounded)
+        {
+            animator.SetBool("IsGrounded",true);
+        }
+        else
+        {
+            animator.SetBool("IsGrounded",false);
+        }
+
+        if(spawnTimeCounter > 0)
+        {
+            spawnTimeCounter -= Time.deltaTime;
+            if(spawnTimeCounter <= 0)
+            {
+                isSpawning = false;
+            }
+        }
+    }
+
+    // Update is called once per frame
+    void FixedUpdate()
+    {
+        // changes direction of player
+        if(horizontal > 0)
+        {
+             gameObject.transform.parent.transform.eulerAngles = new Vector2(0,180);
+             direction = 1;
+        }
+        if(horizontal < 0)
+        {
+            gameObject.transform.parent.transform.eulerAngles = new Vector2(0,0);
+            direction = -1;
+        }
+
+        if(!isDashing)
+        {
+            Move();
+        }
+
+        // determine if the player is sliding
+        if(playerScript.physicsChecker.isWalled && !isWallJumping && !isDashing)
+        {
+            Slide();
+            isSliding = true;
+        }
+        else
+        {
+            isSliding = false;
+        }
+
+
+        // jump if the player pressed jump and they can
+        if(jumped && playerScript.physicsChecker.isGrounded)
+        {
+            rigidbody2d.velocity = new Vector2(rigidbody2d.velocity.x, 0);
+            Jump();
+        }
+        if(jumped && isWallJumping)
+        {
+            rigidbody2d.velocity = new Vector2(rigidbody2d.velocity.x, 0);
+            Jump();
+        }
+        if(isExtraJumping)
+        {
+            rigidbody2d.AddForce(new Vector2(0,jumpForce), ForceMode2D.Force);
+        }
+        if(isDashing)
+        {
+            Dash();
+        }
+
+        // striking
+        if(isStriking)
+        {
+            strikeChecker.SetDirection(direction);
+            strikeZone.SetActive(true);
+        }
+        else
+        {
+            strikeZone.SetActive(false);
+        }
+
+        // interacting
+        if(isInteracting)
+        {
+
+            interactZone.SetActive(true);
+        }
+        else
+        {
+            interactZone.SetActive(false);
+        }
+    }
+
+
+    void Move()
+    {
+        rigidbody2d.velocity = new Vector2(horizontal * speed, rigidbody2d.velocity.y);
+    }
+
+
+
+    // JUMPING METHODS
+    void HandleJumping(){
+        if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isGrounded && !isJumping)
+            {
+                jumped = true;
+                isJumping = true;
+                jumpTimeCounter = jumpTime;
+            }
+            if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
+            {
+                jumped = true;
+                isJumping = true;
+                isWallJumping = true;
+                wallSide = direction * -1;
+                wallJumpTimeCounter = wallJumpTime;
+                jumpTimeCounter = jumpTime;
+            }
+            if(Input.GetButton("Jump") && isJumping)
+            {
+                if(jumpTimeCounter > 0)
+                {
+                    isExtraJumping = true;
+                    jumpTimeCounter -= Time.deltaTime;
+                }
+                else
+                {
+                    isJumping = false;
+                    isExtraJumping = false;
+                }
+            }
+            if(Input.GetButtonUp("Jump"))
+            {
+                isJumping = false;
+                isExtraJumping = false;
+            }
+    }
+
+    void Jump()
+    {
+       rigidbody2d.AddForce(new Vector2(0,jumpForce), ForceMode2D.Impulse);
+       jumped = false;
+    }
+
+    void Hang(){
+
+    }
+
+
+    // WALLJUMPING/WALLSLIDING METHODS
+    void HandleWallJumping(){
+        if(wallJumpTimeCounter > 0)
+            {
+                horizontal = wallSide;
+                wallJumpTimeCounter -= Time.deltaTime;
+            }
+            else
+            {
+                isWallJumping = false;
+            }
+    }
+
+
+    void Slide()
+    {
+        // apply downward friction if player is moving upwards while sliding
+        if(rigidbody2d.velocity.y < -2.0f)
+        {
+            rigidbody2d.AddForce(new Vector2(0,slideForce));
+        }
+        else if(rigidbody2d.velocity.y > 0)
+        {
+            rigidbody2d.AddForce(new Vector2(0,-slideForce * 0.5f));
+        }
+    }
+
+
+
+
+    // DASHING METHODS
+    void HandleDashing(){
+        if(horizontal > 0.02 && !isDashing)
+            {
+                dashSide = 1;
+            }
+            else if(horizontal < -0.02 && !isDashing)
+            {
+                dashSide = -1;
+            }
+            if(isSliding && !isDashing)
+            {
+                dashSide = dashSide * -1;
+            }
+            if(Input.GetButtonDown("Dash") && !isDashing && dashReloadCounter < 0)
+            {
+                isDashing = true;
+                isJumping = false;
+                isWallJumping = false;
+                dashTimeCounter = dashTime;
+            }
+            if(dashTimeCounter > 0)
+            {
+                dashTimeCounter -= Time.deltaTime;
+                horizontal = dashSide;
+
+                if(dashTimeCounter < 0)
+                {
+                    dashReloadCounter = dashReload;
+                }
+            }
+            else
+            {
+                isDashing = false;
+            }
+            if(dashReloadCounter > 0)
+            {
+                dashReloadCounter -= Time.deltaTime;
+            }
+    }
+
+    void Dash()
+    {
+        rigidbody2d.velocity = new Vector2(dashSpeed * dashSide, 0.477f);
+
+    }
+
+    // STRIKING/ATTACKING METHODS
+    void HandleStriking(){
+        if(Input.GetButtonDown("Strike") && !isStriking && strikeCooldownTimer <= 0)
+            {
+                isStriking = true;
+                strikeTimer = strikeTime;
+            }
+
+            if(strikeTimer > 0)
+            {
+                strikeTimer -= Time.deltaTime;
+                if(strikeTimer < 0)
+                {
+                    isStriking = false;
+                    strikeCooldownTimer = strikeCooldown;
+                }
+            }
+            if(strikeCooldownTimer > 0)
+            {
+                strikeCooldownTimer -= Time.deltaTime;
+            }
+    }
+
+
+
+    // Conversation functions
+    public void EnterConversation()
+    {
+        Debug.Log("Conversation started");
+
+        isTalking = true;
+
+    }
+
+    public void ExitConversation()
+    {
+        Debug.Log("Conversation over");
+        isTalking = false;
+        animator.SetBool("IsTalking",false);
+    }
+
+    void HandleYN(){
+        if(isYN){
                 // LAST3 CODE:
                 // 1 = right
                 // 2 = left
@@ -188,360 +538,5 @@ public class PlayerMover : MonoBehaviour
                 }
 
             }
-        }
-        else{
-            isFrozen = false;
-            animator.SetBool("IsTalking",false);
-        }
-
-        if(!isFrozen)
-        {
-            if(!isWallJumping && !isDashing){
-                horizontal = Input.GetAxisRaw("Horizontal");
-            }
-            vertical = Input.GetAxis("Vertical");
-
-            // set speed for animation handling
-            if(Mathf.Abs(horizontal) == 0)
-            {
-                animator.SetBool("IsMoving",false);
-            }
-            else
-            {
-                animator.SetBool("IsMoving",true);
-            }
-
-            // jumping
-            if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isGrounded && !isJumping)
-            {
-                jumped = true;
-                isJumping = true;
-                jumpTimeCounter = jumpTime;
-            }
-            if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
-            {
-                jumped = true;
-                isJumping = true;
-                isWallJumping = true;
-                wallJumpTimeCounter = wallJumpTime;
-                jumpTimeCounter = jumpTime;
-            }
-            if(Input.GetButton("Jump") && isJumping)
-            {
-                if(jumpTimeCounter > 0)
-                {
-                    isExtraJumping = true;
-                    jumpTimeCounter -= Time.deltaTime;
-                }
-                else
-                {
-                    isJumping = false;
-                    isExtraJumping = false;
-                }
-            }
-            if(Input.GetButtonUp("Jump"))
-            {
-                isJumping = false;
-                isExtraJumping = false;
-            }
-
-            // dashing
-            if(horizontal > 0.02 && !isDashing)
-            {
-                dashSide = 1;
-            }
-            else if(horizontal < -0.02 && !isDashing)
-            {
-                dashSide = -1;
-            }
-            if(isSliding && !isDashing)
-            {
-                dashSide = dashSide * -1;
-            }
-            if(Input.GetButtonDown("Dash") && !isDashing && dashReloadCounter < 0)
-            {
-                isDashing = true;
-                isJumping = false;
-                isWallJumping = false;
-                dashTimeCounter = dashTime;
-            }
-            if(dashTimeCounter > 0)
-            {
-                dashTimeCounter -= Time.deltaTime;
-                horizontal = dashSide;
-
-                if(dashTimeCounter < 0)
-                {
-                    dashReloadCounter = dashReload;
-                }
-            }
-            else
-            {
-                isDashing = false;
-            }
-            if(dashReloadCounter > 0)
-            {
-                dashReloadCounter -= Time.deltaTime;
-            }
-
-
-            // walljumping
-            if(wallJumpTimeCounter > 0)
-            {
-                horizontal = -1.0f * playerScript.physicsChecker.wallSide;
-                //Debug.Log(wallSide);
-                wallJumpTimeCounter -= Time.deltaTime;
-            }
-            else
-            {
-                isWallJumping = false;
-            }
-
-
-
-
-            // striking
-            if(Input.GetButtonDown("Strike") && !isStriking && strikeCooldownTimer <= 0)
-            {
-                isStriking = true;
-                strikeTimer = strikeTime;
-            }
-
-            if(strikeTimer > 0)
-            {
-                strikeTimer -= Time.deltaTime;
-                if(strikeTimer < 0)
-                {
-                    isStriking = false;
-                    strikeCooldownTimer = strikeCooldown;
-                }
-            }
-            if(strikeCooldownTimer > 0)
-            {
-                strikeCooldownTimer -= Time.deltaTime;
-            }
-
-            // opening inventory
-            if(Input.GetButtonDown("Inventory") && !isTalking && playerScript.physicsChecker.isGrounded){
-                isFrozen = true;
-                if(!inventoryOpen){
-                    // UPDATE ICONS IN INVENTORY 
-                }
-                inventoryOpen = true;
-                playerScript.sceneManager.inventoryManager.OpenInventory();
-            }
-            if(Input.GetButtonUp("Inventory") && !isTalking && playerScript.physicsChecker.isGrounded){
-                isFrozen = false;
-                inventoryOpen = false;
-                playerScript.sceneManager.inventoryManager.CloseInventory();
-            }
-
-        }
-        else
-        {
-            horizontal = 0;
-            vertical = 0;
-        }
-
-
-
-        // interacting
-        if(Input.GetButtonDown("Interact") && !isInteracting && !isSliding)
-        {
-            isInteracting = true;
-        }
-        if(Input.GetButtonUp("Interact"))
-        {
-            isInteracting = false;
-        }
-
-
-
-
-
-        // PHASE OUT
-        /*
-        // health invincibility period after getting hit
-        if (isInvincible)
-        {
-            invincibleTimer -= Time.deltaTime;
-            if (invincibleTimer < 0)
-                isInvincible = false;
-        }
-        */
-
-
-
-        // animation updating
-        animator.SetFloat("Speed", Mathf.Abs(horizontal));
-        animator.SetFloat("VertSpeed",rigidbody2d.velocity.y);
-
-
-        if(isDashing)
-        {
-            animator.SetBool("IsDashing",true);
-        }
-        else
-        {
-            animator.SetBool("IsDashing",false);
-        }
-
-        if(isSliding)
-        {
-            animator.SetBool("IsSliding",true);
-        }
-        else
-        {
-            animator.SetBool("IsSliding",false);
-        }
-
-        if(playerScript.physicsChecker.isGrounded)
-        {
-            animator.SetBool("IsGrounded",true);
-        }
-        else
-        {
-            animator.SetBool("IsGrounded",false);
-        }
-
-        if(spawnTimeCounter > 0)
-        {
-            spawnTimeCounter -= Time.deltaTime;
-            if(spawnTimeCounter <= 0)
-            {
-                isSpawning = false;
-            }
-        }
-    }
-
-    // Update is called once per frame
-    void FixedUpdate()
-    {
-        // changes direction of player
-        if(horizontal > 0)
-        {
-             gameObject.transform.parent.transform.eulerAngles = new Vector2(0,180);
-             direction = 1;
-        }
-        if(horizontal < 0)
-        {
-            gameObject.transform.parent.transform.eulerAngles = new Vector2(0,0);
-            direction = -1;
-        }
-
-        if(!isDashing)
-        {
-            Move();
-        }
-
-        // determine if the player is sliding
-        if(playerScript.physicsChecker.isWalled && !isWallJumping && !playerScript.physicsChecker.isGrounded && !isDashing)
-        {
-            Slide();
-            isSliding = true;
-        }
-        else
-        {
-            isSliding = false;
-        }
-
-
-        // jump if the player pressed jump and they can
-        if(jumped && playerScript.physicsChecker.isGrounded)
-        {
-            Jump();
-        }
-        if(jumped && isWallJumping)
-        {
-            Jump();
-        }
-        if(isExtraJumping)
-        {
-            rigidbody2d.AddForce(new Vector2(0,jumpForce), ForceMode2D.Force);
-        }
-        if(isDashing)
-        {
-            Dash();
-        }
-
-        // striking
-        if(isStriking)
-        {
-            strikeChecker.SetDirection(direction);
-            strikeZone.SetActive(true);
-        }
-        else
-        {
-            strikeZone.SetActive(false);
-        }
-
-        // interacting
-        if(isInteracting)
-        {
-
-            interactZone.SetActive(true);
-        }
-        else
-        {
-            interactZone.SetActive(false);
-        }
-    }
-
-
-    void Move()
-    {
-        rigidbody2d.velocity = new Vector2(horizontal * speed, rigidbody2d.velocity.y);
-    }
-
-
-
-
-
-    void Jump()
-    {
-       rigidbody2d.AddForce(new Vector2(0,jumpForce), ForceMode2D.Impulse);
-       jumped = false;
-    }
-
-
-
-
-    void Slide()
-    {
-        // apply downward friction if player is moving upwards while sliding
-        if(rigidbody2d.velocity.y < -2.0f)
-        {
-            rigidbody2d.AddForce(new Vector2(0,slideForce));
-        }
-        else if(rigidbody2d.velocity.y > 0)
-        {
-            rigidbody2d.AddForce(new Vector2(0,-slideForce * 0.5f));
-        }
-    }
-
-
-
-
-
-    void Dash()
-    {
-        rigidbody2d.velocity = new Vector2(dashSpeed * dashSide, 0.477f);
-
-    }
-
-
-    // Conversation functions
-    public void EnterConversation()
-    {
-        Debug.Log("Conversation started");
-
-        isTalking = true;
-
-    }
-
-    public void ExitConversation()
-    {
-        Debug.Log("Conversation over");
-        isTalking = false;
     }
 }

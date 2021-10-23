@@ -5,7 +5,7 @@ using UnityEngine;
 public class PlayerScript : MonoBehaviour
 {
     public CharacterHitbox characterHitbox;
-    public CharacterPhysicsChecker physicsChecker;
+    public PlayerPhysicsChecker physicsChecker;
     public PlayerHealth playerHealth;
     public Inventory inventory;
     public PlayerMover characterMover;
