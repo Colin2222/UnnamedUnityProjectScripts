@@ -39,6 +39,9 @@ public class PlayerMover : MonoBehaviour
     public float coyoteTime;
     [System.NonSerialized]
     public float timeSinceGrounded;
+    public float jumpForgivenessTime;
+    [System.NonSerialized]
+    public float timeSincePressed;
     public float maxLandingForce;
 
     //walljumping/sliding
@@ -244,11 +247,14 @@ public class PlayerMover : MonoBehaviour
         }
 
 
-        // update coyote time
+        // update coyote time and jump forgiveness time
         if(playerScript.physicsChecker.isGrounded){
             timeSinceGrounded = 0.0f;
         } else{
             timeSinceGrounded += Time.fixedDeltaTime;
+        }
+        if(timeSincePressed < jumpForgivenessTime){
+            timeSincePressed += Time.fixedDeltaTime;
         }
 
         // jump if the player pressed jump and they can
@@ -304,17 +310,22 @@ public class PlayerMover : MonoBehaviour
 
     // JUMPING METHODS
     void HandleJumping(){
-        if(Input.GetButtonDown("Jump") && (playerScript.physicsChecker.isGrounded || timeSinceGrounded < coyoteTime) && !isJumping){
+        // basic jump off ground (including coyote time)
+        if((Input.GetButtonDown("Jump") || timeSincePressed < jumpForgivenessTime) && (playerScript.physicsChecker.isGrounded || timeSinceGrounded < coyoteTime) && !isJumping){
             jumped = true;
             isJumping = true;
             jumpTimeCounter = jumpTime;
+        }
+        // frame perfect forgiveness jump
+        else if(Input.GetButtonDown("Jump") && !playerScript.physicsChecker.isGrounded && !playerScript.physicsChecker.isWalled){
+            timeSincePressed = 0;
         }
         if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
         {
             jumped = true;
             isJumping = true;
             isWallJumping = true;
-            timeSinceGrounded = coyoteTime; 
+            timeSinceGrounded = coyoteTime;
             wallSide = direction * -1;
             wallJumpTimeCounter = wallJumpTime;
             jumpTimeCounter = jumpTime;
