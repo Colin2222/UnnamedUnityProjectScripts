@@ -55,6 +55,7 @@ public class CharacterHealth : MonoBehaviour
 
     public void Damage(int damage,int side,float knockback,float vertKnockback,string damageType, string damageSource)
     {
+        characterScript.setHurt();
 
         if (isInvincible || !damageable || damageSource.Equals("creature"))
         {

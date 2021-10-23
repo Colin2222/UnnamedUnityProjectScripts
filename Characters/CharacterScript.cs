@@ -12,6 +12,11 @@ public class CharacterScript : MonoBehaviour
     public CharacterDangerChecker dangerChecker;
     public CharacterInteractions interactions;
     public Inventory inventory;
+    public float hurtTime;
+    [System.NonSerialized]
+    public float hurtTimer = 0.0f;
+    [System.NonSerialized]
+    public bool isHurt = false;
 
     [System.NonSerialized]
     public SceneController sceneManager;
@@ -30,7 +35,12 @@ public class CharacterScript : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
+        if(hurtTimer > 0.0){
+            hurtTimer -= Time.deltaTime;
+            if(hurtTimer <= 0){
+                isHurt = false;
+            }
+        }
     }
 
     void FixedUpdate()
@@ -42,6 +52,12 @@ public class CharacterScript : MonoBehaviour
     {
         target = newTarget;
         targetUpdated = true;
+    }
+
+    public void setHurt()
+    {
+        isHurt = true;
+        hurtTimer = hurtTime;
     }
 
 }
