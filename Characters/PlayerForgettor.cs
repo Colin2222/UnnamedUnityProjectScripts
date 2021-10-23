@@ -6,7 +6,7 @@ public class PlayerForgettor : MonoBehaviour
 {
     void OnTriggerExit2D(Collider2D other)
     {
-        PlayerController controller = other.GetComponent<PlayerController>();
+        PlayerScript controller = other.GetComponent<PlayerScript>();
 
         if(controller != null)
         {

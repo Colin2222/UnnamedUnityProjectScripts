@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class InventoryManager : MonoBehaviour
 {
-    public Animator animator;
 
     // Start is called before the first frame update
     void Start()
@@ -16,13 +15,5 @@ public class InventoryManager : MonoBehaviour
     void Update()
     {
         
-    }
-
-    public void OpenInventory(){
-        animator.SetBool("IsOpen",true);
-    }
-
-    public void CloseInventory(){
-        animator.SetBool("IsOpen",false);
     }
 }

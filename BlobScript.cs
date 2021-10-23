@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class BlobScript : MonoBehaviour
 {
+    // NOT FUNCTIONAL ANYMORE, CHANGE TO BE A MODULAR MOVER
+
     // behavior vars
     public float speed;
     private int direction = 1;
@@ -136,12 +138,15 @@ public class BlobScript : MonoBehaviour
     // can be improved so blobs change direction when hitting each other/ dont collide at all (not colliding would require rework of physics)
     void OnTriggerEnter2D(Collider2D other)
     {
+        /*
         PlayerController controller = other.GetComponent<PlayerController>();
 
         if(controller != null)
         {
             controller.ChangeHealth(-1);
         }
+        */
+
     }
     //
     //

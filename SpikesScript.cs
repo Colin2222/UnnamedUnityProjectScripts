@@ -4,14 +4,15 @@ using UnityEngine;
 
 public class SpikesScript : MonoBehaviour
 {
+    // NOT FUNCTIONAL ANYMORE
     void OnTriggerEnter2D(Collider2D other)
     {
-        PlayerController controller = other.GetComponent<PlayerController>();
+        PlayerScript controller = other.GetComponent<PlayerScript>();
         BlobScript blobController = other.GetComponent<BlobScript>();
 
         if(controller != null)
         {
-            controller.ChangeHealth(-1);
+            //controller.ChangeHealth(-1);
         }
         if(blobController != null)
         {
