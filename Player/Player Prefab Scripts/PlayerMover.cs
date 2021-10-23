@@ -37,6 +37,8 @@ public class PlayerMover : MonoBehaviour
     private bool isJumping;
     private bool isExtraJumping;
     public float coyoteTime;
+    [System.NonSerialized]
+    public float timeSinceGrounded;
     public float maxLandingForce;
 
     //walljumping/sliding
@@ -242,8 +244,15 @@ public class PlayerMover : MonoBehaviour
         }
 
 
+        // update coyote time
+        if(playerScript.physicsChecker.isGrounded){
+            timeSinceGrounded = 0.0f;
+        } else{
+            timeSinceGrounded += Time.fixedDeltaTime;
+        }
+
         // jump if the player pressed jump and they can
-        if(jumped && playerScript.physicsChecker.isGrounded)
+        if(jumped && !isWallJumping)
         {
             rigidbody2d.velocity = new Vector2(rigidbody2d.velocity.x, 0);
             Jump();
@@ -295,39 +304,39 @@ public class PlayerMover : MonoBehaviour
 
     // JUMPING METHODS
     void HandleJumping(){
-        if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isGrounded && !isJumping)
+        if(Input.GetButtonDown("Jump") && (playerScript.physicsChecker.isGrounded || timeSinceGrounded < coyoteTime) && !isJumping){
+            jumped = true;
+            isJumping = true;
+            jumpTimeCounter = jumpTime;
+        }
+        if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
+        {
+            jumped = true;
+            isJumping = true;
+            isWallJumping = true;
+            timeSinceGrounded = coyoteTime; 
+            wallSide = direction * -1;
+            wallJumpTimeCounter = wallJumpTime;
+            jumpTimeCounter = jumpTime;
+        }
+        if(Input.GetButton("Jump") && isJumping)
+        {
+            if(jumpTimeCounter > 0)
             {
-                jumped = true;
-                isJumping = true;
-                jumpTimeCounter = jumpTime;
+                isExtraJumping = true;
+                jumpTimeCounter -= Time.deltaTime;
             }
-            if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
-            {
-                jumped = true;
-                isJumping = true;
-                isWallJumping = true;
-                wallSide = direction * -1;
-                wallJumpTimeCounter = wallJumpTime;
-                jumpTimeCounter = jumpTime;
-            }
-            if(Input.GetButton("Jump") && isJumping)
-            {
-                if(jumpTimeCounter > 0)
-                {
-                    isExtraJumping = true;
-                    jumpTimeCounter -= Time.deltaTime;
-                }
-                else
-                {
-                    isJumping = false;
-                    isExtraJumping = false;
-                }
-            }
-            if(Input.GetButtonUp("Jump"))
+            else
             {
                 isJumping = false;
                 isExtraJumping = false;
             }
+        }
+        if(Input.GetButtonUp("Jump"))
+        {
+            isJumping = false;
+            isExtraJumping = false;
+        }
     }
 
     void Jump()
