@@ -57,10 +57,10 @@ public class SceneController : MonoBehaviour
 
         playerObjectTest = GameObject.FindWithTag("PlayerTag");
         if(playerObjectTest == null){
-            player = Instantiate(playerPrefab,new Vector3(0,0,0),Quaternion.identity).GetComponent<PlayerScript>();
+            //player = Instantiate(playerPrefab,new Vector3(0,0,0),Quaternion.identity).GetComponent<PlayerScript>();
         }
         else{
-            player = playerObjectTest.GetComponent<PlayerScript>();
+            //player = playerObjectTest.GetComponent<PlayerScript>();
         }
 
     }

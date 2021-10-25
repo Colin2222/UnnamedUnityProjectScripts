@@ -10,6 +10,7 @@ public class PauseMenuScript : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        /*
         if(Input.GetButtonDown("Menu")){
             if(gamePaused){
                 Resume();
@@ -17,6 +18,7 @@ public class PauseMenuScript : MonoBehaviour
                 Pause();
             }
         }
+        */
     }
 
     private void Resume(){

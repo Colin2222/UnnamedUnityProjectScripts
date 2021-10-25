@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerMover : MonoBehaviour
 {
@@ -21,8 +22,8 @@ public class PlayerMover : MonoBehaviour
 
     //Moving/running
     public float speed = 3.0f;
-    private float horizontal;
-    private float vertical;
+    private float horizontal = 0;
+    private float vertical = 0;
     private int direction = 1;
 
     private float conversationHorizontal;
@@ -101,6 +102,12 @@ public class PlayerMover : MonoBehaviour
     [System.NonSerialized]
     public bool inventoryOpen = false;
 
+    // button pressing
+    private bool jumpPressed;
+    private bool jumpJustPressed; 
+
+
+
     public Animator animator;
 
     // Start is called before the first frame update
@@ -110,9 +117,13 @@ public class PlayerMover : MonoBehaviour
         spawnTimeCounter = spawnTime;
         rigidbody2d = gameObject.transform.parent.GetComponent<Rigidbody2D>();
         strikeChecker = strikeZone.GetComponent<StrikeScript>();
+
+        Debug.Log(string.Join("\n", Gamepad.all));
     }
 
     void Update(){
+        var gamepad = Gamepad.current;
+
         if(isTalking){
             isFrozen = true;
             animator.SetBool("IsTalking",true);
@@ -124,10 +135,17 @@ public class PlayerMover : MonoBehaviour
 
         if(!isFrozen)
         {
+            // handle button pressing
+
+            //horizontal = gamepad.leftStick.x.ReadValue();
+            //vertical = gamepad.leftStick.y.ReadValue();
+
+            /*
             if(!isWallJumping && !isDashing){
                 horizontal = Input.GetAxisRaw("Horizontal");
             }
             vertical = Input.GetAxis("Vertical");
+            */
 
             // set speed for animation handling
             if(Mathf.Abs(horizontal) == 0)
@@ -155,18 +173,18 @@ public class PlayerMover : MonoBehaviour
         }
         else
         {
-            horizontal = 0;
-            vertical = 0;
+            //horizontal = 0;
+            //vertical = 0;
         }
 
 
 
         // interacting
-        if(Input.GetButtonDown("Interact") && !isInteracting && !isSliding)
+        if(gamepad.leftShoulder.wasPressedThisFrame && !isInteracting && !isSliding)
         {
             isInteracting = true;
         }
-        if(Input.GetButtonUp("Interact"))
+        if(!gamepad.leftShoulder.isPressed)
         {
             isInteracting = false;
         }
@@ -310,17 +328,18 @@ public class PlayerMover : MonoBehaviour
 
     // JUMPING METHODS
     void HandleJumping(){
+        var gamepad = Gamepad.current;
         // basic jump off ground (including coyote time)
-        if((Input.GetButtonDown("Jump") || timeSincePressed < jumpForgivenessTime) && (playerScript.physicsChecker.isGrounded || timeSinceGrounded < coyoteTime) && !isJumping){
+        if((jumpJustPressed || timeSincePressed < jumpForgivenessTime) && (playerScript.physicsChecker.isGrounded || timeSinceGrounded < coyoteTime) && !isJumping){
             jumped = true;
             isJumping = true;
             jumpTimeCounter = jumpTime;
         }
         // frame perfect forgiveness jump
-        else if(Input.GetButtonDown("Jump") && !playerScript.physicsChecker.isGrounded && !playerScript.physicsChecker.isWalled){
+        else if(jumpJustPressed && !playerScript.physicsChecker.isGrounded && !playerScript.physicsChecker.isWalled){
             timeSincePressed = 0;
         }
-        if(Input.GetButtonDown("Jump") && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
+        if(jumpJustPressed && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
         {
             jumped = true;
             isJumping = true;
@@ -330,7 +349,7 @@ public class PlayerMover : MonoBehaviour
             wallJumpTimeCounter = wallJumpTime;
             jumpTimeCounter = jumpTime;
         }
-        if(Input.GetButton("Jump") && isJumping)
+        if(jumpPressed && isJumping)
         {
             if(jumpTimeCounter > 0)
             {
@@ -343,7 +362,7 @@ public class PlayerMover : MonoBehaviour
                 isExtraJumping = false;
             }
         }
-        if(Input.GetButtonUp("Jump"))
+        if(gamepad.buttonSouth.wasReleasedThisFrame)
         {
             isJumping = false;
             isExtraJumping = false;
@@ -393,6 +412,7 @@ public class PlayerMover : MonoBehaviour
 
     // DASHING METHODS
     void HandleDashing(){
+        var gamepad = Gamepad.current;
         if(horizontal > 0.02 && !isDashing)
             {
                 dashSide = 1;
@@ -405,7 +425,7 @@ public class PlayerMover : MonoBehaviour
             {
                 dashSide = dashSide * -1;
             }
-            if(Input.GetButtonDown("Dash") && !isDashing && dashReloadCounter < 0)
+            if(gamepad.buttonEast.wasPressedThisFrame && !isDashing && dashReloadCounter < 0)
             {
                 isDashing = true;
                 isJumping = false;
@@ -440,7 +460,8 @@ public class PlayerMover : MonoBehaviour
 
     // STRIKING/ATTACKING METHODS
     void HandleStriking(){
-        if(Input.GetButtonDown("Strike") && !isStriking && strikeCooldownTimer <= 0)
+        var gamepad = Gamepad.current;
+        if(gamepad.buttonWest.wasPressedThisFrame && !isStriking && strikeCooldownTimer <= 0)
             {
                 isStriking = true;
                 strikeTimer = strikeTime;
@@ -480,6 +501,7 @@ public class PlayerMover : MonoBehaviour
     }
 
     void HandleYN(){
+        var gamepad = Gamepad.current;
         if(isYN){
                 // LAST3 CODE:
                 // 1 = right
@@ -487,8 +509,8 @@ public class PlayerMover : MonoBehaviour
                 // -1 = up
                 // -2 = down
                 timeSinceLastDecision += Time.deltaTime;
-                YNHorizontal = Input.GetAxisRaw("Horizontal");
-                YNVertical = Input.GetAxisRaw("Vertical");
+                YNHorizontal = gamepad.leftStick.x.ReadValue();
+                YNVertical = gamepad.leftStick.y.ReadValue();
 
                 if(YNHorizontal == 1 && !YNWasRight){
                     YNWasRight = true;
@@ -558,5 +580,19 @@ public class PlayerMover : MonoBehaviour
                 }
 
             }
+    }
+
+    // controller button methods
+    private void OnMove(InputValue value){
+        Vector2 vector = value.Get<Vector2>();
+
+        Debug.Log(vector.x);
+        horizontal = vector.x;
+        vertical = vector.y;
+    }
+
+    private void OnJump(){
+        jumpPressed = true;
+        jumpJustPressed = true;
     }
 }
