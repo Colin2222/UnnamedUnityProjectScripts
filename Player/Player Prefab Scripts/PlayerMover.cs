@@ -24,10 +24,19 @@ public class PlayerMover : MonoBehaviour
     public float speed = 3.0f;
     private float horizontal = 0;
     private float vertical = 0;
-    private int direction = 1;
+    private float lastHorizontal = 0;
+    private float lastVertical = 0;
+    public int direction = 1;
 
     private float conversationHorizontal;
     private float conversationVertical;
+
+    // aiming
+    public float aimHorizontal = 0;
+    public float aimVertical = 0;
+    public float lastAimHorizontal = 0;
+    public float lastAimVertical = 0;
+
 
 
     //Jumping
@@ -71,6 +80,15 @@ public class PlayerMover : MonoBehaviour
     public float strikeCooldown;
     private float strikeCooldownTimer;
 
+    // teleball throwing
+    private bool isTeleballThrowing = false;
+    public float teleballThrowCooldown;
+    private float teleballThrowCooldownTimer;
+
+    // teleball teleporting
+    private bool isTeleporting = false;
+
+
     // interacting
     private bool isInteracting = false;
     private bool isTalking = false;
@@ -103,8 +121,18 @@ public class PlayerMover : MonoBehaviour
     public bool inventoryOpen = false;
 
     // button pressing
-    private bool jumpPressed;
-    private bool jumpJustPressed; 
+    private bool jumpPressed = false;
+    private bool jumpJustPressed = false;
+    private bool dashPressed = false;
+    private bool dashJustPressed = false;
+    private bool interactPressed = false;
+    private bool interactJustPressed = false;
+    private bool strikePressed = false;
+    private bool strikeJustPressed = false;
+    private bool throwPressed = false;
+    private bool throwJustPressed = false;
+    private bool teleportPressed = false;
+    private bool teleportJustPressed = false;
 
 
 
@@ -122,8 +150,6 @@ public class PlayerMover : MonoBehaviour
     }
 
     void Update(){
-        var gamepad = Gamepad.current;
-
         if(isTalking){
             isFrozen = true;
             animator.SetBool("IsTalking",true);
@@ -163,12 +189,17 @@ public class PlayerMover : MonoBehaviour
             // dashing
             HandleDashing();
 
-
             // walljumping
             HandleWallJumping();
 
             // striking
             HandleStriking();
+
+            // teleball throwing
+            HandleTeleballThrowing();
+
+            // teleporting to teleball
+            HandleTeleporting();
 
         }
         else
@@ -180,11 +211,11 @@ public class PlayerMover : MonoBehaviour
 
 
         // interacting
-        if(gamepad.leftShoulder.wasPressedThisFrame && !isInteracting && !isSliding)
+        if(interactPressed && !isInteracting && !isSliding)
         {
             isInteracting = true;
         }
-        if(!gamepad.leftShoulder.isPressed)
+        if(!interactPressed)
         {
             isInteracting = false;
         }
@@ -328,18 +359,27 @@ public class PlayerMover : MonoBehaviour
 
     // JUMPING METHODS
     void HandleJumping(){
-        var gamepad = Gamepad.current;
         // basic jump off ground (including coyote time)
-        if((jumpJustPressed || timeSincePressed < jumpForgivenessTime) && (playerScript.physicsChecker.isGrounded || timeSinceGrounded < coyoteTime) && !isJumping){
+        if((jumpJustPressed || timeSincePressed < jumpForgivenessTime) &&
+        (playerScript.physicsChecker.isGrounded || (timeSinceGrounded < coyoteTime && !playerScript.physicsChecker.isWalled) && !isJumping)){
             jumped = true;
             isJumping = true;
             jumpTimeCounter = jumpTime;
+            jumpJustPressed = false;
+            /*
+            Debug.Log("GROUND JUMP");
+            Debug.Log("jump just pressed: " + jumpJustPressed);
+            Debug.Log("is grounded: " + playerScript.physicsChecker.isGrounded);
+            Debug.Log("is walled: " + playerScript.physicsChecker.isWalled);
+            */
+
         }
         // frame perfect forgiveness jump
         else if(jumpJustPressed && !playerScript.physicsChecker.isGrounded && !playerScript.physicsChecker.isWalled){
             timeSincePressed = 0;
+            jumpJustPressed = false;
         }
-        if(jumpJustPressed && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
+        else if((jumpJustPressed || timeSincePressed < jumpForgivenessTime) && playerScript.physicsChecker.isWalled && !playerScript.physicsChecker.isGrounded)
         {
             jumped = true;
             isJumping = true;
@@ -348,6 +388,7 @@ public class PlayerMover : MonoBehaviour
             wallSide = direction * -1;
             wallJumpTimeCounter = wallJumpTime;
             jumpTimeCounter = jumpTime;
+            jumpJustPressed = false;
         }
         if(jumpPressed && isJumping)
         {
@@ -362,7 +403,7 @@ public class PlayerMover : MonoBehaviour
                 isExtraJumping = false;
             }
         }
-        if(gamepad.buttonSouth.wasReleasedThisFrame)
+        else if(!jumpPressed)
         {
             isJumping = false;
             isExtraJumping = false;
@@ -386,6 +427,11 @@ public class PlayerMover : MonoBehaviour
             {
                 horizontal = wallSide;
                 wallJumpTimeCounter -= Time.deltaTime;
+                if(wallJumpTimeCounter < 0){
+                    isWallJumping = false;
+                    horizontal = lastHorizontal;
+                    vertical = lastVertical; 
+                }
             }
             else
             {
@@ -412,7 +458,6 @@ public class PlayerMover : MonoBehaviour
 
     // DASHING METHODS
     void HandleDashing(){
-        var gamepad = Gamepad.current;
         if(horizontal > 0.02 && !isDashing)
             {
                 dashSide = 1;
@@ -425,12 +470,13 @@ public class PlayerMover : MonoBehaviour
             {
                 dashSide = dashSide * -1;
             }
-            if(gamepad.buttonEast.wasPressedThisFrame && !isDashing && dashReloadCounter < 0)
+            if(dashJustPressed && !isDashing && dashReloadCounter < 0)
             {
                 isDashing = true;
                 isJumping = false;
                 isWallJumping = false;
                 dashTimeCounter = dashTime;
+                dashJustPressed = false;
             }
             if(dashTimeCounter > 0)
             {
@@ -440,6 +486,8 @@ public class PlayerMover : MonoBehaviour
                 if(dashTimeCounter < 0)
                 {
                     dashReloadCounter = dashReload;
+                    horizontal = lastHorizontal;
+                    vertical = lastVertical;
                 }
             }
             else
@@ -460,11 +508,12 @@ public class PlayerMover : MonoBehaviour
 
     // STRIKING/ATTACKING METHODS
     void HandleStriking(){
-        var gamepad = Gamepad.current;
-        if(gamepad.buttonWest.wasPressedThisFrame && !isStriking && strikeCooldownTimer <= 0)
+        if(strikeJustPressed && !isStriking && strikeCooldownTimer <= 0)
             {
+                Debug.Log("STRIKING");
                 isStriking = true;
                 strikeTimer = strikeTime;
+                strikeJustPressed = false;
             }
 
             if(strikeTimer > 0)
@@ -480,6 +529,29 @@ public class PlayerMover : MonoBehaviour
             {
                 strikeCooldownTimer -= Time.deltaTime;
             }
+    }
+
+    // TELEBALL THROWING METHODS
+    void HandleTeleballThrowing(){
+        if(throwJustPressed && !isTeleballThrowing && teleballThrowCooldownTimer <= 0){
+            isTeleballThrowing = true;
+            teleballThrowCooldownTimer = teleballThrowCooldown;
+            throwJustPressed = false;
+            playerScript.launcher.launchTeleball(aimHorizontal, aimVertical);
+
+        }
+        else if(teleballThrowCooldownTimer > 0){
+            teleballThrowCooldownTimer -= Time.deltaTime;
+            if(teleballThrowCooldownTimer <= 0){
+                    isTeleballThrowing = false;
+            }
+        }
+    }
+
+    void HandleTeleporting(){
+        if(teleportJustPressed){
+            playerScript.launcher.teleportToBall();
+        }
     }
 
 
@@ -501,7 +573,6 @@ public class PlayerMover : MonoBehaviour
     }
 
     void HandleYN(){
-        var gamepad = Gamepad.current;
         if(isYN){
                 // LAST3 CODE:
                 // 1 = right
@@ -509,8 +580,6 @@ public class PlayerMover : MonoBehaviour
                 // -1 = up
                 // -2 = down
                 timeSinceLastDecision += Time.deltaTime;
-                YNHorizontal = gamepad.leftStick.x.ReadValue();
-                YNVertical = gamepad.leftStick.y.ReadValue();
 
                 if(YNHorizontal == 1 && !YNWasRight){
                     YNWasRight = true;
@@ -586,13 +655,52 @@ public class PlayerMover : MonoBehaviour
     private void OnMove(InputValue value){
         Vector2 vector = value.Get<Vector2>();
 
-        Debug.Log(vector.x);
         horizontal = vector.x;
         vertical = vector.y;
+        YNHorizontal = vector.x;
+        YNVertical = vector.y;
+
+        lastHorizontal = horizontal;
+        lastVertical = vertical;
+    }
+
+    private void OnAim(InputValue value){
+        Vector2 vector = value.Get<Vector2>();
+
+        aimHorizontal = vector.x;
+        aimVertical = vector.y;
+
+        lastAimHorizontal = aimHorizontal;
+        lastAimVertical = aimVertical;
     }
 
     private void OnJump(){
-        jumpPressed = true;
-        jumpJustPressed = true;
+        jumpPressed = !jumpPressed;
+        jumpJustPressed = jumpPressed;
+    }
+
+    private void OnDash(){
+        dashPressed = !dashPressed;
+        dashJustPressed = dashPressed;
+    }
+
+    private void OnInteract(){
+        interactPressed = !interactPressed;
+        interactJustPressed = interactPressed;
+    }
+
+    private void OnStrike(){
+        strikePressed = !strikePressed;
+        strikeJustPressed = strikePressed;
+    }
+
+    private void OnThrow(){
+        throwPressed = !throwPressed;
+        throwJustPressed = throwPressed;
+    }
+
+    private void OnTeleport(){
+        teleportPressed = !teleportPressed;
+        teleportJustPressed = teleportPressed; 
     }
 }

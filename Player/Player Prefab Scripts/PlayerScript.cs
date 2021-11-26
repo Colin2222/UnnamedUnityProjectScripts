@@ -9,6 +9,7 @@ public class PlayerScript : MonoBehaviour
     public PlayerHealth playerHealth;
     public Inventory inventory;
     public PlayerMover characterMover;
+    public TeleballLauncherScript launcher;
 
     public float spawnTime;
     private float spawnTimeCounter;
@@ -18,7 +19,8 @@ public class PlayerScript : MonoBehaviour
     [System.NonSerialized]
     public SceneController sceneManager;
 
-    Rigidbody2D rigidbody2d;
+    [System.NonSerialized]
+    public Rigidbody2D rigidbody2d;
 
     // Start is called before the first frame update
     void Start()
@@ -46,5 +48,7 @@ public class PlayerScript : MonoBehaviour
         }
     }
 
-
+    public Vector3 getPos(){
+        return this.gameObject.transform.position;
+    }
 }
